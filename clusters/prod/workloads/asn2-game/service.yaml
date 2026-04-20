@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: asn2-game
+  namespace: asn2
+  labels:
+    app.kubernetes.io/name: asn2-game
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: asn2-game
+  ports:
+    - name: novnc
+      port: 6080
+      targetPort: novnc
+      protocol: TCP

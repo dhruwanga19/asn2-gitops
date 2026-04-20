@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: asn2-game
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Argo CD Image Updater: watch ECR for new sha-* tags and write-back to
+    # this repo via git commit. Sorting by image creation time picks up the
+    # latest build automatically.
+    argocd-image-updater.argoproj.io/image-list: game=000000000000.dkr.ecr.us-east-1.amazonaws.com/asn2-game
+    argocd-image-updater.argoproj.io/game.update-strategy: newest-build
+    argocd-image-updater.argoproj.io/game.allow-tags: regexp:^sha-[0-9a-f]{7}$
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/git-branch: main
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/dhruwanga19/asn2-gitops.git
+    targetRevision: HEAD
+    path: clusters/prod/workloads/asn2-game
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: asn2
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

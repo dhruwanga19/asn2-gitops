@@ -1,0 +1,35 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privilege-escalation
+  annotations:
+    policies.kyverno.io/title: Disallow Privilege Escalation
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: noPrivEsc
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["asn2"]
+      validate:
+        message: "allowPrivilegeEscalation must be false on every container."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
+    - name: noPrivileged
+      match:
+        any:
+          - resources: { kinds: [Pod], namespaces: ["asn2"] }
+      validate:
+        message: "privileged containers are not allowed."
+        pattern:
+          spec:
+            =(containers):
+              - =(securityContext):
+                  =(privileged): "false"

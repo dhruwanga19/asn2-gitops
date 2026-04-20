@@ -1,0 +1,56 @@
+name: Kubernetes manifests lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'clusters/**'
+  pull_request:
+    paths:
+      - 'clusters/**'
+
+permissions:
+  contents: read
+
+jobs:
+  render-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar -xzv -C /usr/local/bin
+
+      - name: Install kustomize
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh \
+            | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Render and schema-validate every kustomization.yaml
+        run: |
+          set -euo pipefail
+          find clusters -name kustomization.yaml | while read -r k; do
+            dir="$(dirname "$k")"
+            echo "::group::Rendering $dir"
+            kustomize build "$dir" | kubeconform -strict -summary \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+            echo "::endgroup::"
+          done
+
+      - name: kube-linter
+        uses: stackrox/kube-linter-action@v1.0.5
+        with:
+          directory: clusters
+          format: sarif
+          output-file: kube-linter.sarif
+
+      - name: Upload kube-linter results to code-scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: kube-linter.sarif
+          category: kube-linter

@@ -1,0 +1,41 @@
+# Default-deny, then allow exactly what's needed:
+#   * ingress on 6080 from the ALB target-group pods (any source IP within the VPC)
+#   * egress DNS (udp/tcp 53) to kube-dns
+#   * egress HTTPS (443) for image layer pulls / noVNC CDN assets
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: asn2-game-default-deny
+  namespace: asn2
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: asn2-game-allow
+  namespace: asn2
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: asn2-game
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 6080
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # HTTPS out (optional; some noVNC builds fetch web-socket libs on boot)
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0, except: ["169.254.169.254/32"] }
+      ports:
+        - { protocol: TCP, port: 443 }

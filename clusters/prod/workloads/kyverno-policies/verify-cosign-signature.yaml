@@ -1,0 +1,31 @@
+# Enforce that every image in the `asn2` namespace carries a valid cosign
+# keyless signature issued by the GitHub Actions workflow that built it.
+# This is the runtime half of "sign in CI, verify at admission".
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-cosign-signature
+  annotations:
+    policies.kyverno.io/title: Verify Cosign Keyless Signatures
+    policies.kyverno.io/severity: critical
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-sig
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["asn2"]
+      verifyImages:
+        - imageReferences:
+            - "*.dkr.ecr.*.amazonaws.com/asn2-game*"
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/dhruwanga19/2210/.github/workflows/ci.yml@refs/heads/main"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: "https://rekor.sigstore.dev"

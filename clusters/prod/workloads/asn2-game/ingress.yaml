@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: asn2-game
+  namespace: asn2
+  labels:
+    app.kubernetes.io/name: asn2-game
+  annotations:
+    # AWS Load Balancer Controller creates an ALB from this Ingress.
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # noVNC redirects bare "/" to /vnc.html?autoconnect=1 — forward everything.
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    # Set by Terraform after ACM validation; update when recreating the cert.
+    # See clusters/prod/apps/asn2-game/kustomization.yaml → patches.
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:000000000000:certificate/REPLACE_ME
+    # External DNS creates the Route53 record automatically from this host.
+    external-dns.alpha.kubernetes.io/hostname: game.example.com
+spec:
+  rules:
+    - host: game.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: asn2-game
+                port:
+                  number: 6080
