@@ -51,6 +51,7 @@ terraform apply -var='region=us-east-1'
 ```
 
 This creates:
+
 - S3 bucket for remote Terraform state (encrypted, versioned, private)
 - DynamoDB state lock table
 - GitHub OIDC provider
@@ -67,7 +68,106 @@ terraform apply
 
 First apply takes ~15–20 min (EKS control plane + node group + addons).
 
+### First-time bootstrap order (recommended)
+
+If this is a brand-new environment, use this order to avoid common timing
+issues around node registration and Argo CRDs:
+
+```bash
+cd infra/terraform
+
+# 1) Build networking first (subnets, IGW, NAT, routes)
+terraform apply -target=module.vpc
+
+# 2) Build EKS + node group
+terraform apply -target=module.eks
+
+# 3) Install addons/Argo (root app is gated off by default)
+terraform apply
+
+# 4) Verify Argo Application CRD exists
+aws eks update-kubeconfig --region us-east-1 --name asn2-prod
+kubectl get crd applications.argoproj.io
+
+# 5) Enable root app after CRD is present
+terraform apply -var='enable_argocd_root_app=true'
+```
+
+Notes:
+
+- `enable_argocd_root_app` defaults to `false` to prevent `kubernetes_manifest`
+  from failing before Argo CRDs are available.
+- After your first successful bootstrap, set
+  `enable_argocd_root_app = true` in `infra/terraform/terraform.tfvars`.
+
+### Troubleshooting quick hits
+
+- `NodeCreationFailure: Instances failed to join the kubernetes cluster`
+  usually means worker nodes launched before full VPC egress (NAT/IGW/routes)
+  was in place. Apply `module.vpc` first, then `module.eks`.
+- `no matches for kind "Application" in group "argoproj.io"` means Argo CD
+  CRDs are not yet installed/discoverable. Install Argo first, then enable
+  `enable_argocd_root_app=true` and apply again.
+
+### Troubleshooting runbook
+
+Use these targeted fixes when bootstrap fails partway through.
+
+- ACM validation stuck (`aws_acm_certificate_validation.game: Still creating...`):
+  verify your registrar delegates the domain to the Route53 hosted zone NS
+  records. Then verify:
+
+```bash
+dig +short NS <your-domain>
+dig +short CNAME <acm-validation-record>
+```
+
+ACM validation finishes only after the validation CNAME is publicly
+resolvable from the authoritative nameservers.
+
+- EKS node group error `Minimum capacity X can't be greater than desired size Y`:
+  this repo's EKS module ignores Terraform drift updates to desired size on
+  managed node groups, so increase desired size first via AWS API, then re-run
+  Terraform:
+
+```bash
+NODEGROUP=$(aws --no-cli-pager eks list-nodegroups --cluster-name asn2-prod --region us-east-1 --query 'nodegroups[0]' --output text)
+aws --no-cli-pager eks update-nodegroup-config \
+  --region us-east-1 \
+  --cluster-name asn2-prod \
+  --nodegroup-name "$NODEGROUP" \
+  --scaling-config minSize=1,maxSize=4,desiredSize=3
+terraform apply -target=module.eks
+```
+
+- Kyverno upgrade rollback (`post-upgrade hooks failed`, `kyverno-clean-reports`):
+  disable Kyverno cleanup hooks/cleanup jobs in Helm values and reconcile only
+  Kyverno first:
+
+```bash
+terraform apply -target=helm_release.kyverno
+```
+
+In this repo, cleanup hooks and cleanup cronjobs are already disabled in
+`infra/terraform/addons.tf` to prevent this failure mode.
+
+- Argo CD Helm timeout (`context deadline exceeded`, release uninstalled due to `atomic`):
+  this usually means pod scheduling pressure (`Too many pods`). Ensure node
+  group capacity is scaled first, then apply Argo/full stack:
+
+```bash
+terraform apply -target=module.eks
+kubectl get nodes
+kubectl get pods -A --field-selector=status.phase=Pending
+terraform apply
+```
+
+If pending pods show scheduler errors, increase node group capacity in
+`terraform.tfvars` (`node_min_size`, `node_max_size`, `node_desired_size`) and
+re-run the EKS targeted apply before full apply.
+
 After apply, grab outputs:
+
 ```bash
 terraform output kubeconfig_command      # run this to configure kubectl
 terraform output github_deploy_role_arn  # store as AWS_DEPLOY_ROLE_ARN in both repos

@@ -12,15 +12,6 @@
 # The main stack (../terraform) consumes the S3 backend these resources create.
 # This module itself uses LOCAL state — commit nothing sensitive from its state.
 
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.60"
-    }
-  }
-}
 
 provider "aws" {
   region = var.region

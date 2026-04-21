@@ -13,6 +13,8 @@ terraform.tfvars
 terraform.tfvars.json
 tfplan
 tfplan.txt
+.terraform.*
+*.rtf
 
 # macOS
 .DS_Store

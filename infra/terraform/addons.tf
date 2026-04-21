@@ -13,6 +13,9 @@ resource "helm_release" "aws_lb_controller" {
   chart      = "aws-load-balancer-controller"
   version    = "1.8.2"
   namespace  = "kube-system"
+  wait       = true
+  timeout    = 900
+  atomic     = true
 
   values = [yamlencode({
     clusterName = module.eks.cluster_name
@@ -39,12 +42,12 @@ resource "helm_release" "external_dns" {
   namespace  = "kube-system"
 
   values = [yamlencode({
-    provider       = "aws"
-    policy         = "sync"
-    registry       = "txt"
-    txtOwnerId     = var.cluster_name
-    domainFilters  = [var.domain_name]
-    sources        = ["ingress"]
+    provider      = "aws"
+    policy        = "sync"
+    registry      = "txt"
+    txtOwnerId    = var.cluster_name
+    domainFilters = [var.domain_name]
+    sources       = ["ingress"]
     serviceAccount = {
       create = true
       name   = "external-dns"
@@ -54,7 +57,10 @@ resource "helm_release" "external_dns" {
     }
   })]
 
-  depends_on = [module.eks]
+  depends_on = [
+    module.eks,
+    helm_release.aws_lb_controller,
+  ]
 }
 
 # ---------------- Metrics Server (HPA, kubectl top) ----------------
@@ -69,7 +75,10 @@ resource "helm_release" "metrics_server" {
     args = ["--kubelet-insecure-tls"] # EKS kubelet uses self-signed certs
   })]
 
-  depends_on = [module.eks]
+  depends_on = [
+    module.eks,
+    helm_release.aws_lb_controller,
+  ]
 }
 
 # ---------------- Kyverno (policy engine) ----------------
@@ -80,8 +89,83 @@ resource "helm_release" "kyverno" {
   version          = "3.2.6"
   namespace        = "kyverno"
   create_namespace = true
+  wait             = true
+  timeout          = 900
+  atomic           = true
+  cleanup_on_fail  = true
 
-  depends_on = [module.eks]
+  values = [yamlencode({
+    webhooksCleanup = {
+      enabled = false
+      image = {
+        registry   = "registry.k8s.io"
+        repository = "kubectl"
+        tag        = "v1.34.0"
+        pullPolicy = "IfNotPresent"
+      }
+    }
+    policyReportsCleanup = {
+      enabled = false
+      image = {
+        registry   = "registry.k8s.io"
+        repository = "kubectl"
+        tag        = "v1.34.0"
+        pullPolicy = "IfNotPresent"
+      }
+    }
+    cleanupJobs = {
+      admissionReports = {
+        enabled = false
+        image = {
+          registry   = "registry.k8s.io"
+          repository = "kubectl"
+          tag        = "v1.34.0"
+          pullPolicy = "IfNotPresent"
+        }
+      }
+      clusterAdmissionReports = {
+        enabled = false
+        image = {
+          registry   = "registry.k8s.io"
+          repository = "kubectl"
+          tag        = "v1.34.0"
+          pullPolicy = "IfNotPresent"
+        }
+      }
+      updateRequests = {
+        enabled = false
+        image = {
+          registry   = "registry.k8s.io"
+          repository = "kubectl"
+          tag        = "v1.34.0"
+          pullPolicy = "IfNotPresent"
+        }
+      }
+      ephemeralReports = {
+        enabled = false
+        image = {
+          registry   = "registry.k8s.io"
+          repository = "kubectl"
+          tag        = "v1.34.0"
+          pullPolicy = "IfNotPresent"
+        }
+      }
+      clusterEphemeralReports = {
+        enabled = false
+        image = {
+          registry   = "registry.k8s.io"
+          repository = "kubectl"
+          tag        = "v1.34.0"
+          pullPolicy = "IfNotPresent"
+        }
+      }
+    }
+  })]
+
+  depends_on = [
+    module.eks,
+    helm_release.aws_lb_controller,
+  ]
 }
 
 # ---------------- Argo CD (GitOps controller) ----------------
@@ -97,6 +181,10 @@ resource "helm_release" "argocd" {
   version          = "7.6.12"
   namespace        = "argocd"
   create_namespace = true
+  wait             = true
+  timeout          = 900
+  atomic           = true
+  cleanup_on_fail  = true
 
   values = [yamlencode({
     global = {
@@ -127,6 +215,7 @@ resource "helm_release" "argocd" {
   })]
 
   depends_on = [
+    module.eks,
     helm_release.aws_lb_controller,
     helm_release.external_dns,
     helm_release.kyverno,

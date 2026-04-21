@@ -13,5 +13,5 @@ resources:
 # Argo CD to roll out the new image.
 images:
   - name: asn2-game
-    newName: 000000000000.dkr.ecr.us-east-1.amazonaws.com/asn2-game
+    newName: 977237383734.dkr.ecr.us-east-1.amazonaws.com/asn2-game
     newTag: sha-PLACEHOLDER

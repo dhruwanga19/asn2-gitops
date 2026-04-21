@@ -10,7 +10,7 @@ variable "cluster_name" {
 
 variable "cluster_version" {
   type    = string
-  default = "1.30"
+  default = "1.35"
 }
 
 # Route53 zone you already own. Override in terraform.tfvars.
@@ -44,7 +44,7 @@ variable "node_max_size" {
 
 variable "node_desired_size" {
   type    = number
-  default = 2
+  default = 3
 }
 
 # GitHub repos allowed to assume the deploy role via OIDC.
@@ -78,4 +78,10 @@ variable "tags" {
     Environment = "prod"
     ManagedBy   = "terraform"
   }
+}
+
+variable "enable_argocd_root_app" {
+  type        = bool
+  description = "Create the Argo CD root Application after Argo CD CRDs are installed."
+  default     = false
 }

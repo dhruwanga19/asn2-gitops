@@ -11,14 +11,14 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
     # noVNC redirects bare "/" to /vnc.html?autoconnect=1 — forward everything.
     alb.ingress.kubernetes.io/healthcheck-path: /
     # Set by Terraform after ACM validation; update when recreating the cert.
     # See clusters/prod/apps/asn2-game/kustomization.yaml → patches.
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:000000000000:certificate/REPLACE_ME
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:977237383734:certificate/878744bb-4886-43a6-87e4-ee02779c46ea
     # External DNS creates the Route53 record automatically from this host.
-    external-dns.alpha.kubernetes.io/hostname: game.example.com
+    external-dns.alpha.kubernetes.io/hostname: game.dhruwang.dev
 spec:
   rules:
     - host: game.example.com

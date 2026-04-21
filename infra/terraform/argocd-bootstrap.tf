@@ -3,6 +3,8 @@
 # is then managed by Argo CD itself from Git.
 
 resource "kubernetes_manifest" "root_app" {
+  for_each = var.enable_argocd_root_app ? { root = true } : {}
+
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "Application"
