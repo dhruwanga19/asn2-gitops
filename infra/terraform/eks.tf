@@ -56,14 +56,28 @@ module "eks" {
     }
   }
 
-  # Grant cluster-admin to the caller identity running `terraform apply`.
-  # In production this would be replaced by SSO groups via
-  # `access_entries` + `access_policy_associations`.
-  enable_cluster_creator_admin_permissions = true
+  # `enable_cluster_creator_admin_permissions` pins the cluster-admin entry
+  # to whoever happens to be running `terraform apply`. That means the entry
+  # flips between local caller (root) and CI caller (github_tf_apply role),
+  # causing replacements on every context switch. Use explicit access_entries
+  # instead — each principal is named, stable, and visible in the config.
+  enable_cluster_creator_admin_permissions = false
 
-  # Also grant cluster-admin to the role CI uses for terraform apply, so the
-  # Helm/Kubernetes providers can reach the API server from GitHub Actions.
   access_entries = {
+    # Local admin (root account). Replace with an IAM user ARN when you
+    # stop using root for day-to-day AWS work.
+    root = {
+      principal_arn = "arn:aws:iam::${local.account_id}:root"
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+    # CI role — lets the Helm/K8s providers reach the API server from GHA.
     github_tf_apply = {
       principal_arn = aws_iam_role.github_tf_apply.arn
       policy_associations = {
