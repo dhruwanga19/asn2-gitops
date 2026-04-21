@@ -15,6 +15,9 @@ locals {
     # GitOps repo: main + plan on PRs
     "repo:${var.github_owner}/${var.github_gitops_repo}:ref:refs/heads/main",
     "repo:${var.github_owner}/${var.github_gitops_repo}:pull_request",
+    # terraform-apply.yml uses `environment: production`, which rewrites the
+    # OIDC sub claim to this form instead of the ref: form above.
+    "repo:${var.github_owner}/${var.github_gitops_repo}:environment:production",
   ]
 }
 
@@ -76,6 +79,28 @@ data "aws_iam_policy_document" "github_deploy" {
     effect    = "Allow"
     actions   = ["eks:DescribeCluster"]
     resources = [module.eks.cluster_arn]
+  }
+
+  # Remote backend: read/write the state object and acquire the lock.
+  statement {
+    sid       = "TfStateBucketList"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::dhruwanga19-asn2-tfstate-use1"]
+  }
+
+  statement {
+    sid       = "TfStateObjectRW"
+    effect    = "Allow"
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = ["arn:aws:s3:::dhruwanga19-asn2-tfstate-use1/asn2-gitops/prod/terraform.tfstate"]
+  }
+
+  statement {
+    sid       = "TfStateLock"
+    effect    = "Allow"
+    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+    resources = ["arn:aws:dynamodb:us-east-1:*:table/dhruwanga19-asn2-tfstate-lock"]
   }
 }
 
