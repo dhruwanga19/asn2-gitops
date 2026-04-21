@@ -7,17 +7,15 @@ data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
 
+# -------------------------------------------------------------------------
+# Role 1: github_deploy — narrow. Used by the APP repo CI to push images
+# to ECR. No infra perms; no state access.
+# -------------------------------------------------------------------------
+
 locals {
-  github_sub_claims = [
-    # App repo: any workflow running on main or any PR from main branch
+  github_deploy_sub_claims = [
     "repo:${var.github_owner}/${var.github_app_repo}:ref:refs/heads/main",
     "repo:${var.github_owner}/${var.github_app_repo}:pull_request",
-    # GitOps repo: main + plan on PRs
-    "repo:${var.github_owner}/${var.github_gitops_repo}:ref:refs/heads/main",
-    "repo:${var.github_owner}/${var.github_gitops_repo}:pull_request",
-    # terraform-apply.yml uses `environment: production`, which rewrites the
-    # OIDC sub claim to this form instead of the ref: form above.
-    "repo:${var.github_owner}/${var.github_gitops_repo}:environment:production",
   ]
 }
 
@@ -37,7 +35,7 @@ data "aws_iam_policy_document" "github_assume" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = local.github_sub_claims
+      values   = local.github_deploy_sub_claims
     }
   }
 }
@@ -47,8 +45,6 @@ resource "aws_iam_role" "github_deploy" {
   assume_role_policy = data.aws_iam_policy_document.github_assume.json
 }
 
-# The role needs to: push to the single ECR repo, read its digest, and
-# (for the gitops repo) call EKS to verify the cluster is reachable.
 data "aws_iam_policy_document" "github_deploy" {
   statement {
     sid    = "EcrPushPull"
@@ -73,40 +69,59 @@ data "aws_iam_policy_document" "github_deploy" {
     actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
-
-  statement {
-    sid       = "EksDescribe"
-    effect    = "Allow"
-    actions   = ["eks:DescribeCluster"]
-    resources = [module.eks.cluster_arn]
-  }
-
-  # Remote backend: read/write the state object and acquire the lock.
-  statement {
-    sid       = "TfStateBucketList"
-    effect    = "Allow"
-    actions   = ["s3:ListBucket"]
-    resources = ["arn:aws:s3:::dhruwanga19-asn2-tfstate-use1"]
-  }
-
-  statement {
-    sid       = "TfStateObjectRW"
-    effect    = "Allow"
-    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = ["arn:aws:s3:::dhruwanga19-asn2-tfstate-use1/asn2-gitops/prod/terraform.tfstate"]
-  }
-
-  statement {
-    sid       = "TfStateLock"
-    effect    = "Allow"
-    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
-    resources = ["arn:aws:dynamodb:us-east-1:*:table/dhruwanga19-asn2-tfstate-lock"]
-  }
 }
 
 resource "aws_iam_role_policy" "github_deploy" {
   role   = aws_iam_role.github_deploy.id
   policy = data.aws_iam_policy_document.github_deploy.json
+}
+
+# -------------------------------------------------------------------------
+# Role 2: github_tf_apply — broad. Used by THIS (gitops) repo to run
+# `terraform plan`/`apply`. Refreshing and mutating every module resource
+# (VPC, EKS, IAM, CloudWatch Logs, KMS, …) requires admin-level access.
+# Guardrails: trust policy scoped to this repo only, and the apply workflow
+# is gated by the `production` GitHub environment (reviewer approval).
+# -------------------------------------------------------------------------
+
+locals {
+  github_tf_apply_sub_claims = [
+    "repo:${var.github_owner}/${var.github_gitops_repo}:ref:refs/heads/main",
+    "repo:${var.github_owner}/${var.github_gitops_repo}:pull_request",
+    # terraform-apply.yml uses `environment: production`, which rewrites sub.
+    "repo:${var.github_owner}/${var.github_gitops_repo}:environment:production",
+  ]
+}
+
+data "aws_iam_policy_document" "github_tf_apply_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = local.github_tf_apply_sub_claims
+    }
+  }
+}
+
+resource "aws_iam_role" "github_tf_apply" {
+  name               = "${var.cluster_name}-github-tf-apply"
+  assume_role_policy = data.aws_iam_policy_document.github_tf_apply_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "github_tf_apply_admin" {
+  role       = aws_iam_role.github_tf_apply.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
 # -------------------------------------------------------------------------

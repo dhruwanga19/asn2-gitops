@@ -20,6 +20,11 @@ output "github_deploy_role_arn" {
   description = "Add this as the AWS_DEPLOY_ROLE_ARN secret in dhruwanga19/2210."
 }
 
+output "github_tf_apply_role_arn" {
+  value       = aws_iam_role.github_tf_apply.arn
+  description = "Add this as the AWS_TF_DEPLOY_ROLE_ARN secret in dhruwanga19/asn2-gitops."
+}
+
 output "game_fqdn" {
   value = local.fqdn
 }
