@@ -1,17 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
   - namespace.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
   - networkpolicy.yaml
-
 # The CI pipeline in dhruwanga19/2210 rewrites `newTag` below on every
 # successful image push (via yq) and opens a PR. Merging that PR triggers
 # Argo CD to roll out the new image.
 images:
   - name: asn2-game
     newName: 977237383734.dkr.ecr.us-east-1.amazonaws.com/asn2-game
-    newTag: sha-PLACEHOLDER
+    newTag: sha-e819542
