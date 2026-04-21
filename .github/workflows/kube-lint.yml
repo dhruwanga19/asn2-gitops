@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write   # codeql-action/upload-sarif posts findings to code-scanning
 
 jobs:
   render-and-lint:

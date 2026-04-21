@@ -21,7 +21,7 @@ metadata:
     external-dns.alpha.kubernetes.io/hostname: game.dhruwang.dev
 spec:
   rules:
-    - host: game.example.com
+    - host: game.dhruwang.dev
       http:
         paths:
           - path: /

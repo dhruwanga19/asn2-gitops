@@ -6,6 +6,13 @@ metadata:
   labels:
     app.kubernetes.io/name: asn2-game
     app.kubernetes.io/part-of: asn2
+  annotations:
+    # supervisord needs root to manage /tmp/.X11-unix socket ownership;
+    # the JVM itself drops to UID 1000 via `gosu app` in entrypoint.
+    ignore-check.kube-linter.io/run-as-non-root: "supervisord manages the X socket as root; JVM drops to uid 1000 via gosu."
+    # Xvfb + supervisor write to /tmp and /var/log/supervisor respectively.
+    # Both are emptyDir mounts so the container FS itself stays ephemeral.
+    ignore-check.kube-linter.io/no-read-only-root-fs: "Xvfb requires a writable /tmp; logs written to an emptyDir volume."
 spec:
   # Single replica: the x11vnc session is shared; scaling > 1 would give
   # different users different games. Intentional for a portfolio demo.
