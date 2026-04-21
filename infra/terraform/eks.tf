@@ -61,5 +61,21 @@ module "eks" {
   # `access_entries` + `access_policy_associations`.
   enable_cluster_creator_admin_permissions = true
 
+  # Also grant cluster-admin to the role CI uses for terraform apply, so the
+  # Helm/Kubernetes providers can reach the API server from GitHub Actions.
+  access_entries = {
+    github_tf_apply = {
+      principal_arn = aws_iam_role.github_tf_apply.arn
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
+
   tags = local.cluster_tags
 }

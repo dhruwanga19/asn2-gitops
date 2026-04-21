@@ -13,16 +13,16 @@ locals {
 }
 
 # Kubernetes + Helm providers point at the cluster created below.
-# The data sources below are read only after EKS exists, preventing provider
-# initialization with empty client configuration during the first apply.
+# No `depends_on = [module.eks]`: the cluster already exists, so the data
+# sources resolve at plan time. Adding depends_on defers them until apply,
+# which leaves the Helm provider with an empty config during plan whenever
+# module.eks has any pending change (e.g. new access_entries).
 data "aws_eks_cluster" "this" {
-  name       = module.eks.cluster_name
-  depends_on = [module.eks]
+  name = module.eks.cluster_name
 }
 
 data "aws_eks_cluster_auth" "this" {
-  name       = module.eks.cluster_name
-  depends_on = [module.eks]
+  name = module.eks.cluster_name
 }
 
 provider "kubernetes" {
