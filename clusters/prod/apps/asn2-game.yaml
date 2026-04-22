@@ -30,3 +30,11 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  # Argo CD < 2.13 lacks the OpenAPI schema for Deployment.status.terminatingReplicas
+  # (added to Kubernetes in 1.33), which breaks server-side diff and leaves the
+  # app stuck in "Unknown" sync state. Ignoring the field unblocks diffing.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /status/terminatingReplicas
