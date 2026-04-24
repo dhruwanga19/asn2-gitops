@@ -26,3 +26,5 @@ tfplan.txt
 
 # Rendered manifests (kustomize build output)
 /rendered/
+
+/docs
