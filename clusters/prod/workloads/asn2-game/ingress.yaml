@@ -16,7 +16,7 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: /
     # Set by Terraform after ACM validation; update when recreating the cert.
     # See clusters/prod/apps/asn2-game/kustomization.yaml → patches.
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:977237383734:certificate/878744bb-4886-43a6-87e4-ee02779c46ea
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:977237383734:certificate/58953720-906d-4673-b2e1-edfebb1eceba
     # External DNS creates the Route53 record automatically from this host.
     external-dns.alpha.kubernetes.io/hostname: game.dhruwang.dev
 spec:
