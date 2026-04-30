@@ -18,7 +18,7 @@ spec:
   # different users different games. Intentional for a portfolio demo.
   replicas: 1
   strategy:
-    type: Recreate          # avoid two pods contending for the ALB target
+    type: Recreate # avoid two pods contending for the ALB target
   selector:
     matchLabels:
       app.kubernetes.io/name: asn2-game
@@ -45,17 +45,17 @@ spec:
               containerPort: 6080
               protocol: TCP
           env:
-            - { name: BOARD_SIZE,       value: "5" }
-            - { name: EMPTY_POSITIONS,  value: "3" }
-            - { name: DEPTH,            value: "3" }
+            - { name: BOARD_SIZE, value: "6" }
+            - { name: EMPTY_POSITIONS, value: "4" }
+            - { name: DEPTH, value: "2" }
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false    # Xvfb writes to /tmp
+            readOnlyRootFilesystem: false # Xvfb writes to /tmp
             capabilities:
               drop: ["ALL"]
           resources:
             requests: { cpu: 250m, memory: 512Mi }
-            limits:   { cpu: 1,    memory: 1Gi }
+            limits: { cpu: 1, memory: 1Gi }
           readinessProbe:
             exec:
               command: ["/usr/local/bin/k8s-probe"]
@@ -72,7 +72,7 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
           volumeMounts:
-            - { name: tmp,  mountPath: /tmp }
+            - { name: tmp, mountPath: /tmp }
             - { name: logs, mountPath: /var/log/supervisor }
       volumes:
         - name: tmp
