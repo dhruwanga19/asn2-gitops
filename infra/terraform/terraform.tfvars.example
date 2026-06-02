@@ -10,3 +10,9 @@ domain_name = "example.com"
 # node_min_size      = 1
 # node_max_size      = 3
 # node_desired_size  = 3
+
+# Flip to true on the SECOND apply (after Argo CD CRDs exist). Left false
+# on first apply because the kubernetes_manifest provider validates the
+# Application CRD at plan time — the CRD comes from the argocd Helm release.
+# Only to do when setting up the infra first time!
+enable_argocd_root_app = false
