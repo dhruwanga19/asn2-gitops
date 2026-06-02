@@ -23,6 +23,7 @@ tfplan.txt
 .idea/
 .vscode/
 *.swp
+.claude
 
 # Rendered manifests (kustomize build output)
 /rendered/
