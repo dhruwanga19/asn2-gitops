@@ -45,8 +45,8 @@ spec:
               containerPort: 6080
               protocol: TCP
           env:
-            - { name: BOARD_SIZE, value: "6" }
-            - { name: EMPTY_POSITIONS, value: "4" }
+            - { name: BOARD_SIZE, value: "5" }
+            - { name: EMPTY_POSITIONS, value: "2" }
             - { name: DEPTH, value: "2" }
           securityContext:
             allowPrivilegeEscalation: false
