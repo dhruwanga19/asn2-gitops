@@ -44,10 +44,10 @@ spec:
             - name: novnc
               containerPort: 6080
               protocol: TCP
-          env:
-            - { name: BOARD_SIZE, value: "5" }
-            - { name: EMPTY_POSITIONS, value: "2" }
-            - { name: DEPTH, value: "2" }
+          # Game tuning (BOARD_SIZE, EMPTY_POSITIONS, DEPTH) lives in the
+          # Dockerfile ENV. Treating it as code: a dev pushes Asn2/Dockerfile,
+          # CI rebuilds + bumps the image tag here, Argo rolls it out. No
+          # manifest edit needed for game-parameter changes.
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false # Xvfb writes to /tmp
