@@ -95,70 +95,14 @@ resource "helm_release" "kyverno" {
   cleanup_on_fail  = true
 
   values = [yamlencode({
-    webhooksCleanup = {
-      enabled = false
-      image = {
-        registry   = "registry.k8s.io"
-        repository = "kubectl"
-        tag        = "v1.34.0"
-        pullPolicy = "IfNotPresent"
-      }
-    }
-    policyReportsCleanup = {
-      enabled = false
-      image = {
-        registry   = "registry.k8s.io"
-        repository = "kubectl"
-        tag        = "v1.34.0"
-        pullPolicy = "IfNotPresent"
-      }
-    }
+    webhooksCleanup      = { enabled = false }
+    policyReportsCleanup = { enabled = false }
     cleanupJobs = {
-      admissionReports = {
-        enabled = false
-        image = {
-          registry   = "registry.k8s.io"
-          repository = "kubectl"
-          tag        = "v1.34.0"
-          pullPolicy = "IfNotPresent"
-        }
-      }
-      clusterAdmissionReports = {
-        enabled = false
-        image = {
-          registry   = "registry.k8s.io"
-          repository = "kubectl"
-          tag        = "v1.34.0"
-          pullPolicy = "IfNotPresent"
-        }
-      }
-      updateRequests = {
-        enabled = false
-        image = {
-          registry   = "registry.k8s.io"
-          repository = "kubectl"
-          tag        = "v1.34.0"
-          pullPolicy = "IfNotPresent"
-        }
-      }
-      ephemeralReports = {
-        enabled = false
-        image = {
-          registry   = "registry.k8s.io"
-          repository = "kubectl"
-          tag        = "v1.34.0"
-          pullPolicy = "IfNotPresent"
-        }
-      }
-      clusterEphemeralReports = {
-        enabled = false
-        image = {
-          registry   = "registry.k8s.io"
-          repository = "kubectl"
-          tag        = "v1.34.0"
-          pullPolicy = "IfNotPresent"
-        }
-      }
+      admissionReports        = { enabled = false }
+      clusterAdmissionReports = { enabled = false }
+      updateRequests          = { enabled = false }
+      ephemeralReports        = { enabled = false }
+      clusterEphemeralReports = { enabled = false }
     }
   })]
 
