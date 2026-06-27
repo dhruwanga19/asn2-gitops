@@ -260,6 +260,67 @@ cd infra/terraform && terraform destroy
 cd ../bootstrap && terraform destroy
 ```
 
+If you want to tear down only EKS-related pieces in this combined state,
+destroy the Helm/Kubernetes resources first and only then the EKS module.
+Targeting `module.eks` by itself is fragile here because the same state still
+owns `helm_release` and `kubernetes_manifest` resources whose destroy path
+must authenticate to the cluster before it can remove them.
+
+```bash
+cd infra/terraform
+terraform destroy -target=helm_release.argocd \
+  -target=helm_release.argocd_image_updater \
+  -target=helm_release.kyverno \
+  -target=helm_release.metrics_server \
+  -target=helm_release.external_dns \
+  -target=helm_release.aws_lb_controller \
+  -target=kubernetes_manifest.root_app
+terraform destroy -target=module.eks
+```
+
+If the cluster is already gone or no longer reachable, the remaining Helm/K8s
+resources may need to be removed from state after they are deleted in AWS.
+
+### Teardown gotchas
+
+- **Kyverno `kyverno-remove-configmap` job fails with `BackoffLimitExceeded`.**
+  Kyverno's Helm pre-delete hook runs a bash script; if its image override
+  points at a distroless image (no `/bin/bash`), every retry crashes until the
+  backoff limit hits and `terraform destroy` aborts. This repo's `addons.tf`
+  leaves the cleanup image at the chart default to avoid this. If you hit it
+  anyway, bypass the hook and drop the release from state:
+
+  ```bash
+  helm uninstall kyverno -n kyverno --no-hooks
+  terraform state rm helm_release.kyverno
+  kubectl delete ns kyverno
+  ```
+
+- **VPC delete fails with `DependencyViolation` / IGW `Network has some mapped
+  public address(es)`.** The ALB Controller release was destroyed before its
+  Ingress, so the ALB it provisioned is orphaned and still holds ENIs + a
+  public EIP in the VPC. Delete the workload Ingress first so the controller
+  reaps its own ALB while it's still running:
+
+  ```bash
+  kubectl delete ingress -n asn2 --all
+  # wait until the ALB is gone, then continue the destroy
+  ```
+
+- **Argo CD `kubernetes_manifest.root_app` destroy times out.** Argo CD
+  Applications carry `resources-finalizer.argocd.argoproj.io`; if the Argo CD
+  controller is already torn down, nothing removes the finalizer and the
+  manifest deletion hangs. Patch the finalizers off before retrying destroy:
+
+  ```bash
+  kubectl get application -A -o name | xargs -I {} kubectl patch {} -n argocd \
+    --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'
+  ```
+
+- **ECR delete fails with `RepositoryNotEmpty`.** The repo retains pushed
+  images. Either empty it first (`aws ecr batch-delete-image ...`) or set
+  `force_delete = true` on `aws_ecr_repository.asn2_game`.
+
 The Route53 hosted zone is imported (data source) so `destroy` leaves it
 intact — only ACM records this stack created are removed.
 
