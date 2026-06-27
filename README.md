@@ -297,7 +297,7 @@ resources may need to be removed from state after they are deleted in AWS.
   ```
 
 - **VPC delete fails with `DependencyViolation` / IGW `Network has some mapped
-  public address(es)`.** The ALB Controller release was destroyed before its
+public address(es)`.** The ALB Controller release was destroyed before its
   Ingress, so the ALB it provisioned is orphaned and still holds ENIs + a
   public EIP in the VPC. Delete the workload Ingress first so the controller
   reaps its own ALB while it's still running:
